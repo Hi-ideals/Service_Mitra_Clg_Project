@@ -12,7 +12,7 @@
 # port; the API and the database are reachable from inside the network only,
 # so the only way in from the LAN is through nginx.
 
-name: servicesetu
+name: servicemitraclg
 
 services:
   # ---------------------------------------------------------------- data
@@ -20,7 +20,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-servicesetu}
+      POSTGRES_DB: ${DB_NAME:-servicemitraclg}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       # Without this, a container restart on a host with a different locale can
@@ -42,7 +42,7 @@ services:
     healthcheck:
       # `pg_isready` alone returns true while the server is still starting up
       # during initdb, so the user and database are checked explicitly.
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-servicesetu}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-servicemitraclg}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -62,7 +62,7 @@ services:
   migrate:
     build:
       context: ./backend
-    image: servicesetu-api:latest
+    image: servicemitraclg-api:latest
     restart: "no"
     env_file: .env
     environment:
@@ -84,7 +84,7 @@ services:
   api:
     build:
       context: ./backend
-    image: servicesetu-api:latest
+    image: servicemitraclg-api:latest
     restart: unless-stopped
     env_file: .env
     environment:

@@ -43,8 +43,8 @@ earlier versions do not understand.
 ## 1. Get the code onto the server
 
 ```bash
-git clone https://github.com/Hi-ideals/Service_Setu.git
-cd Service_Setu
+git clone https://github.com/Hi-ideals/Service_Mitra_Clg_Project.git
+cd Service_Mitra_Clg_Project
 ```
 
 ## 2. Write the configuration
