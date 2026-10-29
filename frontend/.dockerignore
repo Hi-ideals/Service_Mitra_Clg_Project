@@ -1,0 +1,20 @@
+node_modules
+dist
+.vite
+
+# Vite inlines VITE_* values at build time from a build argument, so no env
+# file needs to enter the context - and .env.local could carry a real value.
+.env
+.env.*
+!.env.example
+
+npm-debug.log*
+*.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# The reserved Windows device name that broke `git add`. Excluded so a stray
+# one can never fail a build the same way.
+nul

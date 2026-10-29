@@ -1,0 +1,28 @@
+# Keeps the build context small and, more importantly, keeps secrets and real
+# customer data out of the image. Everything here would otherwise be copied in
+# by `COPY . .` and baked into a layer that anyone with the image can read.
+
+node_modules
+npm-debug.log*
+
+# Secrets. Configuration reaches the container through compose at run time,
+# never through the image.
+.env
+.env.*
+!.env.example
+
+# Real KYC documents. These live in a volume, not in the image.
+uploads
+uploads-test
+
+logs
+*.log
+coverage
+security-report.json
+
+# Not needed at runtime.
+tests
+.git
+.gitignore
+Dockerfile
+.dockerignore

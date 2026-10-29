@@ -1,0 +1,766 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-ink-200;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-800 font-sans text-base antialiased;
+    /* Prevents the horizontal scroll that a single over-wide element would
+       otherwise cause on a phone. */
+    overflow-x: hidden;
+    /* Inter ships alternates that make UI text read better: a straight-sided
+       one, a disambiguated l, and proper contextual alternates. */
+    font-feature-settings: 'cv05' 1, 'cv11' 1, 'ss03' 1, 'calt' 1;
+  }
+
+  h1, h2, h3, h4 {
+    @apply text-ink-900 font-display font-semibold tracking-tight;
+  }
+
+  /* Display sizes need tighter tracking than body copy; at 30px the default
+     letter spacing reads as gappy rather than airy. */
+  h1 {
+    letter-spacing: -0.022em;
+  }
+
+  h2, h3 {
+    letter-spacing: -0.014em;
+  }
+
+  /* Figures line up in columns only when they share a width. Money and counts
+     appear in tables throughout, so this is not cosmetic. */
+  th, td {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+
+  /* A scrollbar that belongs to the page rather than to the operating system. */
+  @media (pointer: fine) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: theme('colors.ink.300') transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      @apply rounded-pill border-4 border-solid border-transparent bg-ink-300 bg-clip-content;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      @apply bg-ink-400;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  /* A visible focus ring for keyboard users, suppressed for mouse clicks. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-600 ring-offset-2 ring-offset-white;
+  }
+
+  /* A caret in the brand colour. Tiny, but it is the one piece of UI the user
+     stares at while typing. */
+  input, textarea, select {
+    caret-color: theme('colors.brand.600');
+  }
+
+  /* iOS zooms the page when a font smaller than 16px gets focus, which looks
+     like a bug. Inputs stay at 16px on touch devices for that reason alone. */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+      /* The stagger sets delays of up to 315ms. Without this, a `both`-filled
+         entrance animation holds those elements at opacity 0 for the delay
+         even though the animation itself is now instant - the list would
+         appear to pop in piecemeal, which is the very thing being opted out
+         of. */
+      animation-delay: 0ms !important;
+      transition-delay: 0ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Skip link for keyboard and screen-reader users. */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50
+           focus:rounded-field focus:bg-brand-600 focus:px-4 focus:py-2
+           focus:text-white focus:shadow-card;
+  }
+
+  .page {
+    @apply mx-auto w-full max-w-content px-4 sm:px-6 lg:px-8;
+  }
+
+  /**
+   * A card that answers the pointer.
+   *
+   * The lift is 2px and the shadow grows underneath it. Any more and the card
+   * looks like it is escaping the page; any less and nothing registers as
+   * clickable.
+   */
+  .lift {
+    @apply transition-[transform,box-shadow] duration-200 ease-out will-change-transform;
+  }
+
+  .lift:hover {
+    @apply -translate-y-0.5 shadow-card-hover;
+  }
+
+  .lift:active {
+    @apply translate-y-0 shadow-card;
+  }
+
+  /* Frosted bar for anything that stays put while the page moves under it. */
+  .glass {
+    @apply border-b border-ink-200/70 bg-white/80 backdrop-blur-xl backdrop-saturate-150;
+  }
+
+  /* Brand wordmark and any figure that deserves emphasis. */
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  /* The tinted field a hero or empty state sits on. */
+  .surface-tint {
+    @apply bg-hero-glow;
+  }
+
+  /* A hairline that fades out at both ends, for section breaks that should
+     not look like table rules. */
+  .rule-soft {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      theme('colors.ink.200') 15%,
+      theme('colors.ink.200') 85%,
+      transparent
+    );
+  }
+
+
+  /**
+   * A card with its own light.
+   *
+   * The ring warms to brand and a tinted glow appears underneath, so a
+   * featured or hovered card reads as lit from within rather than merely
+   * raised. Reserved for the one card on a screen that matters most.
+   */
+  .card-glow {
+    @apply transition-[transform,box-shadow,border-color] duration-300 ease-out;
+  }
+
+  .card-glow:hover {
+    @apply -translate-y-1 shadow-glow-brand ring-brand-200;
+  }
+
+  /**
+   * The icon tile used beside every label and stat in the app.
+   *
+   * A gradient fill plus an inset top highlight, which is what separates a
+   * designed chip from a coloured square. Tone comes from a modifier class.
+   */
+  .icon-chip {
+    @apply flex shrink-0 items-center justify-center rounded-field ring-1 ring-inset shadow-inset-top;
+  }
+
+  .icon-chip-brand   { @apply bg-gradient-to-b from-brand-50 to-brand-100 text-brand-600 ring-brand-200/70; }
+  .icon-chip-success { @apply bg-gradient-to-b from-success-50 to-success-100 text-success-700 ring-success-500/20; }
+  .icon-chip-warning { @apply bg-gradient-to-b from-warning-50 to-warning-100 text-warning-700 ring-warning-500/20; }
+  .icon-chip-danger  { @apply bg-gradient-to-b from-danger-50 to-danger-100 text-danger-700 ring-danger-500/20; }
+  .icon-chip-info    { @apply bg-gradient-to-b from-info-50 to-info-100 text-info-700 ring-info-500/20; }
+  .icon-chip-neutral { @apply bg-gradient-to-b from-ink-50 to-ink-100 text-ink-500 ring-ink-200; }
+
+  /**
+   * A row in a list that answers the pointer.
+   *
+   * The tint is the whole effect - a row must not lift, or a long list ripples
+   * as the cursor travels down it. The left marker grows in to show which row
+   * the pointer owns without shifting the text.
+   */
+  .row-hover {
+    @apply relative transition-colors duration-150;
+  }
+
+  .row-hover::before {
+    content: '';
+    @apply absolute inset-y-1 left-0 w-0.5 origin-center scale-y-0 rounded-pill bg-brand-500
+           transition-transform duration-200 ease-out;
+  }
+
+  .row-hover:hover {
+    @apply bg-brand-50/40;
+  }
+
+  .row-hover:hover::before {
+    @apply scale-y-100;
+  }
+
+  /**
+   * A live dot with an expanding halo.
+   *
+   * A blinking dot demands attention continuously; a slow outward ring says
+   * "running" and then gets out of the way.
+   */
+  .live-dot {
+    @apply relative inline-flex h-2 w-2 shrink-0;
+  }
+
+  .live-dot::before {
+    content: '';
+    @apply absolute inset-0 animate-pulse-ring rounded-full bg-current;
+  }
+
+  .live-dot::after {
+    content: '';
+    @apply relative inline-flex h-2 w-2 rounded-full bg-current;
+  }
+
+  /**
+   * Staggered entrance for a list or a grid.
+   *
+   * Everything arriving at once is a flash; everything arriving in sequence is
+   * a reveal. Capped at eight, after which the delay would be long enough to
+   * feel like the page is slow rather than smooth.
+   */
+  .stagger > * {
+    @apply animate-rise-in;
+  }
+
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 45ms; }
+  .stagger > *:nth-child(3) { animation-delay: 90ms; }
+  .stagger > *:nth-child(4) { animation-delay: 135ms; }
+  .stagger > *:nth-child(5) { animation-delay: 180ms; }
+  .stagger > *:nth-child(6) { animation-delay: 225ms; }
+  .stagger > *:nth-child(7) { animation-delay: 270ms; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 315ms; }
+
+  /* The page's own entrance, applied by the route shells. */
+  .page-enter {
+    @apply animate-rise-in;
+  }
+
+  /* An underline that grows from the left on hover, for text links in prose
+     and footers where a colour change alone is too quiet. */
+  .link-grow {
+    @apply relative inline-block transition-colors;
+  }
+
+  .link-grow::after {
+    content: '';
+    @apply absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-current
+           transition-transform duration-200 ease-out;
+  }
+
+  .link-grow:hover::after {
+    @apply scale-x-100;
+  }
+
+  /* A tinted panel that still looks like a surface, used for callouts and
+     summary strips. */
+  .panel-tint {
+    @apply rounded-card bg-gradient-to-b from-white to-ink-50 ring-1 ring-inset ring-ink-200/80 shadow-inset-top;
+  }
+
+  /* Numbers in a stat or a total. Tabular so columns line up, tight so large
+     figures do not look gappy. */
+  .figure {
+    @apply font-display font-semibold tabular-nums tracking-tight text-ink-900;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Colour and depth for the public pages.
+   *
+   * The application screens are deliberately plain - somebody checking a
+   * booking does not want decoration. The pages a stranger lands on have the
+   * opposite job: they have to look like a business worth trusting with a
+   * key to your house, and a page of white cards on grey does not.
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Four lights instead of two.
+   *
+   * The hero already carried a blue and an orange radial. Two more - a warm
+   * low one and a cool high one - give the white more to do without ever
+   * resolving into a band, and the whole field drifts slowly so the page is
+   * not quite static while somebody reads it.
+   *
+   * Sizes are in `rem`, so the lights scale with the page rather than being
+   * cropped to one corner on a phone.
+   */
+  .aurora {
+    background-color: theme('colors.brand.50');
+    background-image:
+      radial-gradient(44rem 26rem at 6% -10%, rgba(19, 99, 184, 0.42) 0%, transparent 60%),
+      radial-gradient(40rem 24rem at 98% -6%, rgba(234, 114, 40, 0.34) 0%, transparent 62%),
+      radial-gradient(36rem 22rem at 82% 110%, rgba(16, 185, 129, 0.26) 0%, transparent 64%),
+      radial-gradient(34rem 20rem at 14% 114%, rgba(96, 177, 240, 0.32) 0%, transparent 62%);
+    background-repeat: no-repeat;
+  }
+
+  /**
+   * A section that should feel like a different room.
+   *
+   * White, grey, white, grey down a long page reads as one surface with gaps
+   * in it. A faint warm tint on alternate bands gives the page a rhythm, and
+   * the hairline at each edge keeps the join crisp rather than muddy.
+   */
+  .band-warm {
+    @apply border-y border-accent-100;
+    background-image:
+      linear-gradient(180deg, #FFF8F3 0%, #FDE9DB 52%, #FFF4EC 100%);
+  }
+
+  .band-cool {
+    @apply border-y border-brand-100;
+    background-image:
+      linear-gradient(180deg, #F4FAFF 0%, #DCEDFB 52%, #F2F9FF 100%);
+  }
+
+  /* A third hue, so three consecutive bands never repeat themselves. */
+  .band-mint {
+    @apply border-y border-success-100;
+    background-image:
+      linear-gradient(180deg, #F3FCF8 0%, #D9F5E9 52%, #F1FBF7 100%);
+  }
+
+  /**
+   * Texture, not colour.
+   *
+   * A wide flat tint is still a flat tint. A faint dot grid over it catches
+   * the light at a glance and disappears the moment you look straight at it,
+   * which is what stops a large coloured band reading as a painted wall.
+   */
+  .dot-grid {
+    background-image: radial-gradient(rgba(12, 62, 144, 0.10) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /**
+   * A short coloured rule under a section heading.
+   *
+   * Cheaper than an icon and does the same work: it tells the eye where a
+   * section starts when it is scrolling past at speed.
+   */
+  .heading-rule::after {
+    content: '';
+    @apply mt-2.5 block h-1 w-12 rounded-pill;
+    background-image: linear-gradient(
+      90deg,
+      theme('colors.brand.600') 0%,
+      theme('colors.accent.500') 100%
+    );
+  }
+
+  /**
+   * A card that catches the light as the pointer crosses it.
+   *
+   * The sweep is a single wide highlight travelling left to right, clipped to
+   * the card. It is slow and weak on purpose - at full strength it reads as a
+   * loading skeleton, which is exactly the wrong signal on a tile somebody is
+   * about to click.
+   */
+  .sheen {
+    @apply relative isolate overflow-hidden;
+  }
+
+  .sheen::after {
+    content: '';
+    @apply pointer-events-none absolute inset-0 z-20 -translate-x-full;
+    background-image: linear-gradient(
+      100deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.42) 50%,
+      transparent 65%
+    );
+    transition: transform 0.75s ease-out;
+  }
+
+  .sheen:hover::after,
+  .sheen:focus-visible::after {
+    @apply translate-x-full;
+  }
+
+  /**
+   * The hover state for a tile with a photograph in it.
+   *
+   * Three things at once, which is what makes it feel like one gesture: the
+   * card rises, a coloured glow appears beneath it, and the ring warms from
+   * grey to brand. Without the glow the lift alone looks like a bug.
+   */
+  .tile {
+    @apply transition-[transform,box-shadow,--tw-ring-color] duration-300 ease-out;
+  }
+
+  .tile:hover {
+    @apply -translate-y-1 ring-brand-300;
+    box-shadow:
+      0 18px 38px -16px rgba(12, 62, 144, 0.34),
+      0 6px 14px -8px rgba(234, 114, 40, 0.22);
+  }
+
+  .tile:active {
+    @apply translate-y-0;
+  }
+
+  /**
+   * A warm wash that deepens as the pointer arrives.
+   *
+   * Sits over a photograph, under the caption. The point is to make the name
+   * readable at any brightness of image while adding colour rather than the
+   * usual flat black scrim.
+   */
+  .photo-wash {
+    @apply pointer-events-none absolute inset-0 transition-opacity duration-300;
+    background-image: linear-gradient(
+      to top,
+      rgba(18, 32, 87, 0.92) 0%,
+      rgba(18, 32, 87, 0.45) 38%,
+      rgba(234, 114, 40, 0.10) 72%,
+      transparent 100%
+    );
+  }
+
+  /**
+   * A price, a count, anything small that should read as a fact.
+   *
+   * Gradient text at small sizes is usually a mistake - it muddies the
+   * letterforms - so this is a solid brand colour with the weight doing the
+   * work instead.
+   */
+  .stat-accent {
+    @apply font-display font-bold tabular-nums tracking-tight text-brand-600;
+  }
+
+  /**
+   * Three reassurances, three colours.
+   *
+   * They were one blue repeated, which reads as a single statement in three
+   * parts rather than three separate reasons to trust the place. Toned by
+   * position rather than by a prop, so the markup keeps saying what the row
+   * is and the stylesheet decides what it looks like.
+   */
+  .promise-row > *:nth-child(1) .icon-chip,
+  .promise-row > *:nth-child(1) > div:first-child {
+    @apply bg-gradient-to-b from-brand-50 to-brand-100 text-brand-600 ring-brand-200/70;
+  }
+
+  .promise-row > *:nth-child(2) .icon-chip,
+  .promise-row > *:nth-child(2) > div:first-child {
+    @apply bg-gradient-to-b from-success-50 to-success-100 text-success-700 ring-success-500/25;
+  }
+
+  .promise-row > *:nth-child(3) .icon-chip,
+  .promise-row > *:nth-child(3) > div:first-child {
+    @apply bg-gradient-to-b from-accent-50 to-accent-100 text-accent-600 ring-accent-500/25;
+  }
+
+  /* The glyph inherits the tile's colour rather than carrying its own. */
+  .promise-row > * > div:first-child svg {
+    color: inherit;
+  }
+
+  /**
+   * The field a whole browsing page sits on.
+   *
+   * Search and the category listings were the body grey, which is the colour
+   * of a form. A soft cool wash with the dot texture says "this is a place to
+   * look around" rather than "this is a screen to fill in".
+   */
+  .page-field {
+    background-color: #F4F9FE;
+    background-image:
+      radial-gradient(42rem 22rem at 100% -6%, rgba(234, 114, 40, 0.10) 0%, transparent 60%),
+      radial-gradient(38rem 20rem at 0% -4%, rgba(19, 99, 184, 0.14) 0%, transparent 58%),
+      radial-gradient(rgba(12, 62, 144, 0.07) 1px, transparent 1px);
+    background-size: auto, auto, 22px 22px;
+    background-attachment: fixed, fixed, scroll;
+  }
+
+  /**
+   * Cards in a results grid, all the same height.
+   *
+   * A grid row is as tall as its tallest card, and a card that stops short
+   * leaves its button floating in the middle of a gap. Stretching every card
+   * and pushing the last row to the bottom puts every "Book now" on the same
+   * line, which is what makes a grid scannable rather than ragged.
+   */
+  .results-grid {
+    @apply items-stretch;
+  }
+
+  .results-grid > * {
+    @apply flex h-full flex-col;
+  }
+
+  .results-grid > * > * {
+    @apply flex h-full flex-col;
+  }
+
+  .results-grid .card-foot {
+    @apply mt-auto;
+  }
+
+  /**
+   * The panel that holds the filters.
+   *
+   * Tinted rather than white, so it reads as a tool beside the results rather
+   * than as another result.
+   */
+  .filter-panel {
+    @apply rounded-card p-4 shadow-card ring-1 ring-inset ring-brand-100;
+    background-image: linear-gradient(180deg, #FFFFFF 0%, #F4FAFF 100%);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * One professional, as a card.
+   * ------------------------------------------------------------------ */
+
+  /**
+   * The photograph, treated like a portrait rather than a placeholder.
+   *
+   * A white gap, then a brand ring, then a soft shadow - the same recipe a
+   * framed photograph uses, and the reason a plain circle of initials reads
+   * as missing data while this one reads as a person.
+   */
+  .pro-avatar {
+    @apply shrink-0 rounded-full ring-2 ring-white;
+    box-shadow:
+      0 0 0 3px rgba(19, 99, 184, 0.14),
+      0 6px 14px -6px rgba(12, 62, 144, 0.30);
+  }
+
+  /**
+   * The verified tick, moved onto the portrait.
+   *
+   * It used to sit in the header row beside the name, where it took width
+   * from the headline and pushed it into an ellipsis mid-phrase. On the
+   * corner of the avatar it costs no width at all, and it is where anybody
+   * who has used a messaging app already expects to find it.
+   */
+  .pro-verified {
+    @apply absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center
+           rounded-full bg-white text-success-600 ring-2 ring-white;
+    box-shadow: 0 2px 6px -1px rgba(4, 120, 87, 0.45);
+  }
+
+  /**
+   * A row of small facts, separated by dots the markup does not carry.
+   *
+   * Writing the separators into the JSX means every conditional fact has to
+   * know whether it is first - and a hidden one leaves a dot stranded. A
+   * sibling selector cannot get that wrong.
+   */
+  .pro-meta {
+    @apply gap-x-3;
+  }
+
+  /**
+   * What this professional actually does.
+   *
+   * Grey chips on a white card read as disabled. A brand tint says these are
+   * capabilities, and keeps them distinct from the neutral furniture around
+   * them without shouting.
+   */
+  .pro-tag {
+    @apply rounded-pill px-2 py-0.5 text-[0.6875rem] font-medium leading-5 text-brand-700
+           ring-1 ring-inset ring-brand-200/70 transition-colors duration-200;
+    background-image: linear-gradient(180deg, #F1F8FE 0%, #E1F1FC 100%);
+  }
+
+  .group:hover .pro-tag {
+    @apply ring-brand-300;
+  }
+
+  /* The quiet half of the price: small, spaced, clearly a label. */
+  .pro-price-label {
+    @apply block text-[0.6875rem] font-semibold uppercase tracking-wider text-ink-400;
+  }
+
+  /**
+   * The footer of a result card.
+   *
+   * Tinted and inset so the price and the button sit on their own shelf
+   * rather than floating under the text, which is what gives the card a
+   * bottom edge to rest on.
+   */
+  .pro-foot {
+    @apply -mx-4 -mb-4 mt-3 border-t border-ink-200/80 px-4 py-3;
+    background-image: linear-gradient(180deg, rgba(246, 248, 250, 0.6) 0%, rgba(241, 248, 254, 0.9) 100%);
+  }
+
+  /**
+   * The shared look for a data table.
+   *
+   * Four tables (admin bookings, admin reports, provider earnings, customer
+   * invoices) had each been styled separately and had drifted apart in header
+   * weight, row padding and hover. One class, so a user moving between them is
+   * reading the same table each time.
+   */
+  .data-table thead tr {
+    @apply border-b border-ink-200 bg-gradient-to-b from-ink-50 to-white text-left;
+  }
+
+  .data-table th {
+    @apply whitespace-nowrap px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink-500;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors duration-150;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-brand-50/40;
+  }
+
+  .data-table td {
+    @apply px-4 py-2.5;
+  }
+
+  /* The loading placeholder used while a list is fetching. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-ink-100;
+  }
+
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    content: '';
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Keeps content clear of the iOS home indicator. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/**
+ * Print.
+ *
+ * A printed invoice is a document, not a web page. Everything that exists to
+ * help someone navigate the site - header, footer, bottom bar, toasts - is
+ * chrome, and on paper it is noise that pushes the invoice onto a second page.
+ *
+ * Scoped to a `printable` region so this cannot accidentally blank a page
+ * that has no such region.
+ */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* Navigation and transient UI never belong on paper. */
+  header,
+  footer,
+  nav,
+  .skip-link,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    /* Let the content dictate the height, rather than the app shell's
+       min-height stretching a short invoice across two pages. */
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* The layout shells reserve space for the bottom navigation bar. With the
+     bar gone, that padding is just a gap at the foot of the page. */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .page {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Screen depth reads as grey smudge in print, and costs ink. */
+  .shadow-card,
+  .shadow-card-hover,
+  .shadow-sheet,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Keep a document from being split across a page boundary mid-table. */
+  .printable {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .printable table {
+    break-inside: auto;
+  }
+
+  .printable tr,
+  .printable li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* A link showing as blue underlined text on paper is misleading - there is
+     nothing to click. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

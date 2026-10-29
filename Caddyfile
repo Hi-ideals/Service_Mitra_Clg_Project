@@ -1,0 +1,43 @@
+# TLS terminator.
+#
+# Caddy obtains and renews a Let's Encrypt certificate on its own - there is no
+# certbot to run, no cron entry to forget, and no expiry to be caught out by.
+# It needs ports 80 and 443 reachable from the internet, because that is how
+# the ACME challenge proves the domain belongs to this machine.
+#
+# nginx still serves the application inside the `web` container. Caddy only
+# terminates TLS and passes the request on, so the two are not duplicating work.
+
+{$SITE_DOMAIN} {
+	# nginx on the compose network. Not localhost, and not the published port -
+	# containers reach each other by service name.
+	reverse_proxy web:80 {
+		# Tells the API the request arrived over HTTPS, which is what makes the
+		# Secure cookie correct. Caddy sets X-Forwarded-For and -Proto itself;
+		# this is explicit so the behaviour is readable rather than implied.
+		header_up X-Forwarded-Proto https
+	}
+
+	# Keeps the body limit in step with nginx (10m) and the API (MAX_UPLOAD_MB).
+	# A smaller value here would reject a KYC upload before it reached either,
+	# with a 413 the application never sees and cannot explain.
+	request_body {
+		max_size 10MB
+	}
+
+	encode gzip zstd
+
+	# HSTS is deliberately short to begin with. It cannot be withdrawn once a
+	# browser has seen it, so a long value locks you out of plain HTTP if you
+	# ever need it for debugging. Raise max-age to 31536000 once the
+	# certificate has renewed at least once and you are confident.
+	header {
+		Strict-Transport-Security "max-age=300"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

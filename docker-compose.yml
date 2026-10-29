@@ -1,0 +1,219 @@
+# ServiceSetu - local server deployment
+#
+#   docker compose up -d --build
+#
+# Configuration comes from `.env` in this directory. That exact name matters:
+# compose reads it automatically for every command. Calling it anything else
+# means passing --env-file to `up`, `logs`, `ps` and the rest, and forgetting
+# it on any one of them fails with a variable-interpolation error rather than
+# anything that points at the real cause.
+#
+# Three services on one private network. Only the web container publishes a
+# port; the API and the database are reachable from inside the network only,
+# so the only way in from the LAN is through nginx.
+
+name: servicesetu
+
+services:
+  # ---------------------------------------------------------------- data
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-servicesetu}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      # Without this, a container restart on a host with a different locale can
+      # refuse to open the existing data directory.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      # Mounted at /var/lib/postgresql, NOT at .../data.
+      #
+      # The Postgres 18 images changed this. They now store data in a
+      # major-version subdirectory (/var/lib/postgresql/18/docker) so that
+      # pg_upgrade --link can work across a major version without crossing a
+      # mount-point boundary. Mounting the old .../data path makes the server
+      # find data where it no longer looks, and it exits at startup rather
+      # than risk touching it.
+      #
+      # Named volume, not a bind mount: this is the entire business record and
+      # it must survive `docker compose down` and image rebuilds.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # `pg_isready` alone returns true while the server is still starting up
+      # during initdb, so the user and database are checked explicitly.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-servicesetu}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # Published on the loopback interface only, so Postgres is reachable from
+    # the server itself but never from the internet. A GUI client on a laptop
+    # reaches it through an SSH tunnel, not by opening this to 0.0.0.0.
+    ports:
+      - "127.0.0.1:15432:5432"
+
+  # --------------------------------------------------------------- migrate
+  # Runs once per `up`, applies pending migrations, seeds platform settings, exits.
+  # Service categories are not seeded - the admin creates them in the app.
+  # A separate one-shot container rather than part of the API's start command,
+  # so that scaling or restarting the API never re-runs a migration, and a
+  # failed migration stops the deployment instead of silently looping.
+  migrate:
+    build:
+      context: ./backend
+    image: servicesetu-api:latest
+    restart: "no"
+    env_file: .env
+    environment:
+      DB_HOST: db
+      NODE_ENV: production
+      # Same clock as the api, so a seed or a migration that stamps a date
+      # agrees with the application that reads it back.
+      TZ: ${TZ:-Asia/Kolkata}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Seeding is idempotent - in this mode it writes settings only, with no
+    # categories and no accounts - so re-running it on every deploy is safe.
+    command: >
+      sh -c "node src/db/migrate.js up &&
+             node src/db/seed.js --catalogue-only"
+
+  # ----------------------------------------------------------------- api
+  api:
+    build:
+      context: ./backend
+    image: servicesetu-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      NODE_ENV: production
+      PORT: 5000
+      # The clock the business runs on.
+      #
+      # A provider's working hours are stored as wall-clock times - "09:00 to
+      # 18:00" - and expanded into real slots with setHours(), which uses
+      # whatever timezone this process is in. Without this the container runs
+      # in UTC, so a plumber who said nine in the morning was offered to
+      # customers from half past two in the afternoon, and his mornings were
+      # invisible. Everybody here is in one timezone, so it is pinned.
+      TZ: ${TZ:-Asia/Kolkata}
+    volumes:
+      # KYC documents, in a folder on the host rather than a named volume.
+      #
+      # A named volume keeps them safe but hides them under
+      # /var/lib/docker/volumes, which makes them awkward to inspect and
+      # awkward to back up with ordinary tools. A bind mount puts them
+      # somewhere you can see, tar and rsync like any other directory.
+      #
+      # The folder must exist and be writable by uid 1000 before the first
+      # start - the container drops to the `node` user, and Docker creates a
+      # missing bind-mount path as root, which the container then cannot write
+      # to. DEPLOY.md has the one-line mkdir.
+      - ${UPLOADS_PATH:-./data/uploads}:/app/uploads
+      # Backups, on the host for the same reason as the uploads: a dump that
+      # only exists inside the container is lost with the container, and the
+      # whole point of it is to survive the thing it is backing up.
+      #
+      # This is still the same physical machine. Copying this folder somewhere
+      # else - another host, object storage, anywhere - is a separate step,
+      # and DEPLOY.md has the one-line cron for it.
+      - ${BACKUPS_PATH:-./data/backups}:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Not published either. nginx reaches it over the compose network.
+    expose:
+      - "5000"
+
+  # ----------------------------------------------------------------- web
+  web:
+    build:
+      context: ./frontend
+      args:
+        # Relative, so the browser calls the same origin it loaded the app
+        # from and nginx forwards it to the API. Changing this to an absolute
+        # URL reintroduces CORS and breaks the refresh cookie.
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    # Bound to the loopback interface, not 0.0.0.0. Caddy reaches nginx over
+    # the compose network, so the only reason to publish this at all is to be
+    # able to curl it from the server while debugging - and on a machine with
+    # a public IP, 0.0.0.0 would expose the site unencrypted alongside the
+    # HTTPS one.
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8082}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ------------------------------------------------------------- tls
+  # Terminates HTTPS and forwards to nginx.
+  #
+  # Caddy obtains and renews the Let's Encrypt certificate itself, so there is
+  # no certbot to run and no renewal cron to forget. It needs 80 and 443 open
+  # to the internet: 80 is how the ACME challenge proves the domain points
+  # here, and Caddy redirects it to 443 the rest of the time.
+  caddy:
+    # Behind a profile, so a bare `docker compose up -d` never starts it.
+    #
+    # Caddy is for a machine where nothing else owns 80 and 443. On a server
+    # already running a web server - Apache fronting several sites, say - it
+    # cannot bind them, and the whole `up` fails on a container that was not
+    # wanted. Opt in with `--profile tls` on a host where it is the only
+    # thing listening.
+    profiles: ["tls"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Defaulted rather than required: Compose interpolates every service,
+      # including ones no profile selected, so `:?` here failed commands that
+      # had nothing to do with Caddy.
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account keys. This MUST persist: Let's Encrypt
+      # rate-limits certificate issuance per domain per week, and a container
+      # that forgets its certificate on every restart will exhaust that and
+      # then serve errors for days.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  # ----------------------------------------------------------- tunnel
+  # Publishes the site at a real domain without a public IP, without opening a
+  # port on the router, and without the server being reachable directly from
+  # the internet. cloudflared dials out to Cloudflare and traffic comes back
+  # down that connection, so the box stays closed to inbound entirely - which
+  # also means it works behind CGNAT, where port forwarding simply cannot.
+  #
+  # Only runs when asked for:
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    # Defaulted, not required. Compose interpolates every service before it
+    # looks at profiles, so `:?` here refused commands that were never going to
+    # start this container - including, on a server with no tunnel at all,
+    # every `docker compose` command.
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-unset}
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  # The database stays a named volume: nothing outside Postgres should be
+  # reading or writing those files, so there is no reason to expose them.
+  pgdata:
+  caddy_data:
+  caddy_config:

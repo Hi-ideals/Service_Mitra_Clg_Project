@@ -1,0 +1,28 @@
+node_modules/
+.env
+.env.local
+.env.test.local
+.env.backup-before-fix
+logs/*.log
+uploads/*
+!uploads/.gitkeep
+# Files the test suite writes; never part of the repo or the real uploads.
+uploads-test/
+backups-test/
+
+# Database dumps. The single most sensitive file this project produces - every
+# customer address, every bank detail, every password hash, in one file. It
+# must never be committable, by accident or otherwise.
+#
+# Scoped to what a dump actually looks like. A bare `*.sql` here also matched
+# src/db/migrations/*.sql, which git silently hid - the already-tracked ones
+# kept working and only NEW migrations vanished, so the first sign would have
+# been a deploy whose database was missing a table.
+backups/
+*.sql.gz
+*.dump
+coverage/
+*.tmp
+
+# Output of npm run security:probe.
+security-report.json

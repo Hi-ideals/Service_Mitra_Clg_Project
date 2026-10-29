@@ -1,0 +1,36 @@
+# Repository-wide rules. The backend and frontend keep their own .gitignore
+# for things specific to each.
+
+# Deployment configuration. Holds the database password, both JWT secrets and
+# the SMTP credentials - it must never reach the repository. The committed
+# template beside it is .env.docker.example.
+.env
+.env.docker
+.env.docker.*
+!.env.docker.example
+
+# Reserved Windows device names. A file called `nul` can be created by Git Bash
+# translating /dev/null for a native program, and git then cannot index it -
+# `git add` fails outright with "No such file or directory".
+nul
+con
+aux
+prn
+
+# Editor and OS noise.
+.DS_Store
+Thumbs.db
+*.swp
+
+# Keys and certificates. Not used today - the deployment is plain HTTP - but
+# kept so a private key dropped here by any future tooling is never committed.
+# A key that reaches a repository has to be treated as compromised.
+*.key
+*.pem
+*.crt
+*.pfx
+
+# Uploaded documents on a deployment. Real customer identity papers - they
+# belong in backups, never in a repository.
+data/
+docs
